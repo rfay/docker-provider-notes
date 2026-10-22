@@ -18,6 +18,7 @@ Every finding records what it was tested on and when, because providers change q
 | Lima | Linux | Unsupported | [lima-linux.md](providers/lima-linux.md) |
 | Rancher Desktop, Podman | macOS, Linux | Supported, with limits | [rancher-podman.md](providers/rancher-podman.md) |
 | Docker Desktop or docker-ce | Windows WSL2 | Supported | [wsl2.md](providers/wsl2.md) |
+| Docker Desktop | Windows, native | Supported | [docker-desktop-windows.md](providers/docker-desktop-windows.md) |
 
 ## Topics
 
@@ -25,13 +26,15 @@ Every finding records what it was tested on and when, because providers change q
 - [Docker Desktop deadlocks](topics/docker-desktop-deadlocks.md): container starts that hang forever, and how to capture evidence
 - [Privileged ports in VM-based providers](topics/privileged-ports.md): why the router's ports 80 and 443 can silently fail to reach the host
 - [File sharing and ownership](topics/file-sharing.md): 9p, virtiofs, and sshfs, with rootful and rootless Docker
-- [External volumes and symlinked project roots](topics/external-volumes.md): projects on external drives or behind a symlink or junction, Mutagen, exFAT, and provider access to removable volumes
+- [External volumes and symlinked project roots](topics/external-volumes.md): projects on external drives or behind a symlink or junction, Mutagen, exFAT, and provider access to removable volumes (macOS and native Windows)
 
 ## Scripts
 
 - [scripts/lima-perm.sh](scripts/lima-perm.sh): creates a Lima instance with a given template and mount type, then checks `ddev start`, container writes, ownership, and file-access speed
 - [scripts/file-churn-repro.sh](scripts/file-churn-repro.sh): changes files in a bind-mounted directory and checks after each round that `docker run` still works
 - [scripts/ddev-external-volume-check.sh](scripts/ddev-external-volume-check.sh): checks bind mounts, Mutagen sync, snapshot, export and import, import-files, and pull for a running DDEV project
+- [scripts/ddev-external-volume-check.ps1](scripts/ddev-external-volume-check.ps1): the same kind of checks for one project on native Windows, in PowerShell
+- [scripts/ddev-pull-check.ps1](scripts/ddev-pull-check.ps1) and [scripts/ddev-pull-check-provider.yaml](scripts/ddev-pull-check-provider.yaml): `ddev pull` with a local provider on native Windows
 
 ## Test machines
 

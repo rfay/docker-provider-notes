@@ -1,6 +1,6 @@
 # External Volumes and Symlinked Project Roots
 
-**Tested:** OrbStack 2.2.4 with Docker Engine 29.8.2, on macOS 27.0.1 arm64, in October 2026. The DDEV binary was built from [ddev/ddev#8987](https://github.com/ddev/ddev/pull/8987) at commit 53e341d96, with Mutagen 0.18.1. The external drive was a USB flash drive, first formatted exFAT and then APFS. Windows and WSL2 are not tested yet.
+**Tested:** OrbStack 2.2.4 with Docker Engine 29.8.2, on macOS 27.0.1 arm64, in October 2026. The DDEV binary was built from [ddev/ddev#8987](https://github.com/ddev/ddev/pull/8987) at commit 53e341d96, with Mutagen 0.18.1. The external drive was a USB flash drive, first formatted exFAT and then APFS. Docker Desktop (version not recorded; engine 29.9.2, WSL2 backend, WSL 3.0.3.0, kernel 6.18.54.1) on Windows 11 Home 10.0.26200 arm64, same DDEV build, in October 2026, with a USB flash drive formatted exFAT and then NTFS. The Windows details are in [the Windows section](#windows) and [docker-desktop-windows.md](../providers/docker-desktop-windows.md).
 
 This page covers DDEV projects whose files are on an external drive, and projects whose root directory is a symlink or a Windows junction. The motivating report is [ddev/ddev#8924](https://github.com/ddev/ddev/issues/8924). There, a user moved projects to an external APFS drive and left a symlink at each old path.
 
@@ -102,9 +102,35 @@ Record results here when you test one of these, with the exact error text.
 
 ## Windows
 
-Not tested yet. Points to cover:
+Tested with Docker Desktop on native Windows (WSL2 backend), with DDEV run from PowerShell and from git-bash. Details of the Docker Desktop side are in [docker-desktop-windows.md](../providers/docker-desktop-windows.md#external-drives).
 
-- Windows has two kinds of directory link: a symbolic link (`mklink /D`, which needs Developer Mode or an administrator shell) and a junction (`mklink /J`). Mutagen refuses both as a sync root. Since Go 1.23, Go reports a junction as an irregular file rather than a symlink, so ddev/ddev#8987 handles it separately.
+### Links
+
+- Windows has two kinds of directory link: a symbolic link (`mklink /D`, which needs Developer Mode or an administrator shell) and a junction (`mklink /J`, which needs neither). Mutagen refuses both as a sync root. Since Go 1.23, Go reports a junction as an irregular file rather than a symlink, so ddev/ddev#8987 handles it separately.
 - Remove a link with `cmd /c rmdir <link>`. Using `Remove-Item` on a junction can delete the files in the target.
 - The Windows test procedure (W1 to W7) is in the [ddev/ddev#8987 description](https://github.com/ddev/ddev/pull/8987).
-- Still to do: an external drive with a drive letter, and Docker Desktop file sharing for it.
+- **exFAT can't hold links.** On an exFAT drive, git-bash's `ln -s` writes a 68-byte file with the System attribute, which is MSYS's emulated link. PowerShell's `Get-Item` shows no `LinkType` or `Target` for it, and Go, Mutagen, and Docker see a plain file. It resolves only inside git-bash. Use NTFS for any link test.
+- **git-bash resolves a junction before `ddev` sees the working directory.** DDEV registers the project under the target path. PowerShell registers the link path. After a junction is repointed, `ddev start` from git-bash stops with `project root is already set to ...\real-g, refusing to change it to ...\real-g2` (`pkg/globalconfig/global_config.go`). `ddev stop --unlist <project>` followed by `ddev start` gets past it, and the session is then recreated for the new target. PowerShell isn't affected. This predates the fix in #8987.
+
+### Results with the fix
+
+Each case was a fresh PHP project with MariaDB and `performance_mode: mutagen`, run from PowerShell, on an NTFS drive that Docker could see (see [Docker access to the drive](../providers/docker-desktop-windows.md#external-drives)). Scripts: [ddev-external-volume-check.ps1](../scripts/ddev-external-volume-check.ps1) and [ddev-pull-check.ps1](../scripts/ddev-pull-check.ps1). They are the scripts that produced these results, with the hard-coded paths turned into parameters; the parameterized versions have not been rerun.
+
+| Project root | Mutagen host URL | Result |
+| --- | --- | --- |
+| Plain directory on C: (control) | that directory | all checks pass |
+| Plain directory on D: | that directory | all checks pass |
+| Junction on C: pointing to D: | the D: target | all checks pass |
+| Junction on D: pointing to D: | the D: target | all checks pass |
+| `mklink /D` symlink on D: pointing to D: | the D: target | all checks pass |
+
+"All checks" means: the site answers 200; `ddev snapshot` and `ddev snapshot restore`; `ddev export-db` (the dump file exists and has content); `ddev import-db`; `/mnt/ddev_config` is populated; `ddev utility mutagen-diagnose` reports no issues; a stop and start doesn't recreate the session; and `ddev pull` with a local provider restores the database and a file into `upload_dirs`. `ddev import-files` was exercised only through the pull.
+
+Also observed on the fix, from the PR's own tests: a junction on C: repointed to a copy recreates the session and serves the copy (PowerShell), and `mutagen-diagnose` walks the target of a junction.
+
+### Not tested
+
+- Repointing a link that lives on D:.
+- `ddev pull` with a real remote provider. With the default database import, `ddev pull` fails on any native Windows path; see [docker-desktop-windows.md](../providers/docker-desktop-windows.md#ddev-pull-default-database-import-fails).
+- The upgrade from a failing v1.25.4 session (W4) and a OneDrive folder (W7).
+- Windows on amd64, and Windows with the Docker engine in WSL2 rather than Docker Desktop.

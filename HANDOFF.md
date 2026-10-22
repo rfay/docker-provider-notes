@@ -97,3 +97,12 @@ Ubuntu 26.04 arm64 in Parallels on a Mac, reached as `ssh ub-2604` while the VM 
 - docker-ce was not enabled at boot on 2026-10-20: `sudo systemctl enable --now docker`.
 - The DDEV checkout is in `~/workspace/ddev`, often on a working branch; use `git worktree add` to test another branch without disturbing it.
 - The login profile sets `SSH_AUTH_SOCK=~/.1password-agent.sock`, in the home directory, so with `ssh_agent_upstream=host` DDEV mounts all of `~` into `ddev-ssh-agent`.
+
+## Windows 11 arm64 (native Docker Desktop)
+
+The owner's own machine, used on 2026-10-21 to test [external volumes](topics/external-volumes.md#windows). Docker Desktop with the WSL2 backend; see [docker-desktop-windows.md](providers/docker-desktop-windows.md).
+
+- **Drive `D:`:** a USB flash drive, reformatted from exFAT to NTFS during the testing. Its earlier contents are gone.
+- **Manual WSL mounts:** `D:` was mounted by hand into the `docker-desktop` distro (command in the provider page) so Docker can read it. They disappear when WSL restarts; Docker then can't see `D:` again.
+- **DDEV:** the binary on PATH in the repository's shell is a `make` build in `.gotmp\bin\windows_arm64`. A system install also exists in `%LOCALAPPDATA%\Programs\DDEV`.
+- **Left behind:** no test projects, links, or files on `D:`. The owner's `d11` project was paused by a WSL restart and was not restarted.

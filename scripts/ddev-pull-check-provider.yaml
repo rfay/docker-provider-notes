@@ -1,0 +1,20 @@
+# Local provider for ddev-pull-check.ps1: copies a dump and a files directory from ~/tmp/pullsrc into
+# .ddev/.downloads on the host, then imports the database on the host. The db_import_command is there
+# because the default import fails on Windows paths; delete it to reproduce that failure.
+db_pull_command:
+  command: |
+    set -eu
+    mkdir -p "${DDEV_APPROOT}/.ddev/.downloads"
+    cp "$HOME/tmp/pullsrc/db.sql.gz" "${DDEV_APPROOT}/.ddev/.downloads/db.sql.gz"
+  service: host
+files_pull_command:
+  command: |
+    set -eu
+    mkdir -p "${DDEV_APPROOT}/.ddev/.downloads/files"
+    cp -r "$HOME/tmp/pullsrc/files/." "${DDEV_APPROOT}/.ddev/.downloads/files/"
+  service: host
+db_import_command:
+  command: |
+    set -eu
+    gzip -dc "${DDEV_APPROOT}/.ddev/.downloads/db.sql.gz" | ddev mysql db
+  service: host
