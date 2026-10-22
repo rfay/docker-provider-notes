@@ -60,6 +60,8 @@ An agent session was blocked from running the `mount` until the owner approved i
 
 ## ddev pull: default database import fails
 
+Filed as [ddev/ddev#8998](https://github.com/ddev/ddev/issues/8998). It also reproduces on the stable release v1.25.4.
+
 On native Windows, `ddev pull <provider>` fails at the database import when the provider has no `db_import_command`, on any project, linked or not:
 
 ```text
@@ -69,9 +71,11 @@ stdout:
 stderr: ERROR at line 1: Unknown command '\U'.
 ```
 
-The cause, from reading the code (the fix below was not yet run): `importDatabaseBackup` in `pkg/ddevapp/provider.go` takes the database name with `path.Base(loc)`. The `path` package splits only on `/`, so a Windows path comes back whole, and the name becomes `C:\Users\rfay\tmp\xl\ctl\`. `ImportDB` puts it into `CREATE DATABASE IF NOT EXISTS <name>`, and the mysql client reads `\U` as a command. The line dates from [ddev/ddev#4426](https://github.com/ddev/ddev/pull/4426) and is still on `upstream/main`. The earlier report [ddev/ddev#8572](https://github.com/ddev/ddev/issues/8572), from Windows 11 with Git Bash, shows the same error and was closed as a MariaDB version mismatch; inferred, not confirmed, that it is this bug.
+The cause: `importDatabaseBackup` in `pkg/ddevapp/provider.go` takes the database name with `path.Base(loc)`. The `path` package splits only on `/`, so a Windows path comes back whole, and the name becomes `C:\Users\rfay\tmp\xl\ctl\`. `ImportDB` puts it into `CREATE DATABASE IF NOT EXISTS <name>`, and the mysql client reads `\U` as a command. The line dates from [ddev/ddev#4426](https://github.com/ddev/ddev/pull/4426) and is still on `upstream/main`. The earlier report [ddev/ddev#8572](https://github.com/ddev/ddev/issues/8572), from Windows 11 with Git Bash, shows the same error and was closed as a MariaDB version mismatch; inferred, not confirmed, that it is this bug.
 
-Workaround: give the provider a `db_import_command` that runs on the host, such as `gzip -dc "${DDEV_APPROOT}/.ddev/.downloads/db.sql.gz" | ddev mysql db`. See [scripts/ddev-pull-check.ps1](../scripts/ddev-pull-check.ps1) and its provider file.
+Changing `path.Base` to `filepath.Base` and dropping the unused `path` import fixed it: the same pull then ended with "Pull succeeded" and the table was back (observed, with a provider that has only a `db_pull_command`, on a plain directory on C:). The patch is a two-line diff. The repository's own rule is in `.claude/rules/go.md`: use `filepath` for host paths.
+
+Workaround until fixed: give the provider a `db_import_command` that runs on the host, such as `gzip -dc "${DDEV_APPROOT}/.ddev/.downloads/db.sql.gz" | ddev mysql db`. See [scripts/ddev-pull-check.ps1](../scripts/ddev-pull-check.ps1) and its provider file.
 
 ## SSH agent
 
